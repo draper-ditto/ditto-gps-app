@@ -12,6 +12,22 @@ export interface ValidationResult {
   errors: string[];
 }
 
+export function normalizeUsername(username: string): string {
+  return username.trim().toLocaleLowerCase('en-US');
+}
+
+export function hasDuplicateUsername(
+  people: UserPresence[],
+  username: string,
+  excludingId: string,
+): boolean {
+  const normalized = normalizeUsername(username);
+  return people.some(
+    (person) =>
+      person._id !== excludingId && normalizeUsername(person.username) === normalized,
+  );
+}
+
 export function validatePresence(input: unknown): ValidationResult {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     return { errors: ['Request body must be a JSON object.'] };
@@ -78,4 +94,3 @@ function readCoordinate(
   }
   return value;
 }
-

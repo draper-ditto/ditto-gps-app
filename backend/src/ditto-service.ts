@@ -8,7 +8,7 @@ import {
 } from '@dittolive/ditto';
 
 import type { AppConfig } from './config.js';
-import type { UserPresence } from './presence.js';
+import { hasDuplicateUsername, type UserPresence } from './presence.js';
 
 const collection = 'user_presence';
 
@@ -54,6 +54,10 @@ export class DittoService {
        ON ID CONFLICT DO UPDATE_LOCAL_DIFF`,
       { presence: { ...presence } },
     );
+  }
+
+  async usernameTaken(username: string, excludingId: string): Promise<boolean> {
+    return hasDuplicateUsername(await this.list(), username, excludingId);
   }
 
   async health(): Promise<{ connected: boolean; records: number }> {

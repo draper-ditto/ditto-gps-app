@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/user_presence.dart';
 import '../services/presence_controller.dart';
@@ -19,6 +23,8 @@ class _PresencePageState extends State<PresencePage> {
   final _status = TextEditingController();
   late final PresenceController _controller;
   bool _didHydrateForm = false;
+  bool _isLocating = false;
+  String? _locationError;
 
   @override
   void initState() {
@@ -75,6 +81,62 @@ class _PresencePageState extends State<PresencePage> {
     }
   }
 
+  Future<void> _useCurrentLocation() async {
+    setState(() {
+      _isLocating = true;
+      _locationError = null;
+    });
+
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        throw StateError(
+          'Location services are disabled. Enable them and try again.',
+        );
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied) {
+        throw StateError('Location permission was denied.');
+      }
+      if (permission == LocationPermission.deniedForever) {
+        throw StateError(
+          'Location permission is blocked. Allow location access in your browser or device settings, then try again.',
+        );
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
+        ),
+      );
+      if (!mounted) return;
+
+      _latitude.text = position.latitude.toStringAsFixed(6);
+      _longitude.text = position.longitude.toStringAsFixed(6);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Current coordinates added to the form.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _locationError = 'Unable to use current location: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLocating = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -93,26 +155,9 @@ class _PresencePageState extends State<PresencePage> {
                           state: _controller.syncState,
                           peerCount: _controller.people.length,
                         ),
-                        const SizedBox(height: 34),
-                        const Text(
-                          'Set your point.\nStay in sync.',
-                          style: TextStyle(
-                            fontSize: 40,
-                            height: 1.05,
-                            letterSpacing: -1.6,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Share a manual location and a quick status with every device in your Ditto mesh.',
-                          style: TextStyle(
-                            color: Color(0xFF8E98A8),
-                            height: 1.5,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 30),
+                        const SizedBox(height: 18),
+                        _WaypointMap(people: _controller.people),
+                        const SizedBox(height: 24),
                         _EditorCard(
                           formKey: _formKey,
                           username: _username,
@@ -120,8 +165,18 @@ class _PresencePageState extends State<PresencePage> {
                           longitude: _longitude,
                           status: _status,
                           state: _controller.syncState,
+                          usernameValidator: _controller.validateUsername,
+                          isLocating: _isLocating,
+                          onUseCurrentLocation: _useCurrentLocation,
                           onSave: _save,
                         ),
+                        if (_locationError != null) ...[
+                          const SizedBox(height: 14),
+                          _ErrorBanner(
+                            message: _locationError!,
+                            onRetry: _useCurrentLocation,
+                          ),
+                        ],
                         if (_controller.errorMessage != null) ...[
                           const SizedBox(height: 14),
                           _ErrorBanner(
@@ -184,7 +239,7 @@ class _Header extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'WAYPOINT',
+              'DRAPER TAK',
               style: TextStyle(
                 fontSize: 13,
                 letterSpacing: 2.2,
@@ -238,6 +293,9 @@ class _EditorCard extends StatelessWidget {
     required this.longitude,
     required this.status,
     required this.state,
+    required this.usernameValidator,
+    required this.isLocating,
+    required this.onUseCurrentLocation,
     required this.onSave,
   });
 
@@ -247,6 +305,9 @@ class _EditorCard extends StatelessWidget {
   final TextEditingController longitude;
   final TextEditingController status;
   final SyncState state;
+  final FormFieldValidator<String> usernameValidator;
+  final bool isLocating;
+  final VoidCallback onUseCurrentLocation;
   final VoidCallback onSave;
 
   @override
@@ -283,9 +344,7 @@ class _EditorCard extends StatelessWidget {
                 hintText: 'Your name',
                 counterText: '',
               ),
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Enter a username'
-                  : null,
+              validator: usernameValidator,
             ),
             const SizedBox(height: 22),
             const _FieldLabel(
@@ -314,6 +373,36 @@ class _EditorCard extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: isLocating ? null : onUseCurrentLocation,
+                icon: isLocating
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.my_location_rounded, size: 17),
+                label: Text(
+                  isLocating
+                      ? 'Finding your location…'
+                      : 'Use current location',
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF78F0C6),
+                  side: const BorderSide(color: Color(0xFF31433F)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 22),
             const _FieldLabel(icon: Icons.bolt_rounded, label: 'STATUS'),
@@ -433,6 +522,229 @@ class _FieldLabel extends StatelessWidget {
             fontSize: 10,
             letterSpacing: 1.5,
             fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WaypointMap extends StatefulWidget {
+  const _WaypointMap({required this.people});
+
+  final List<UserPresence> people;
+
+  @override
+  State<_WaypointMap> createState() => _WaypointMapState();
+}
+
+class _WaypointMapState extends State<_WaypointMap> {
+  static const _fallbackCenter = LatLng(39.8283, -98.5795);
+  final _mapController = MapController();
+  bool _mapReady = false;
+
+  List<LatLng> get _points => widget.people
+      .map((person) => LatLng(person.latitude, person.longitude))
+      .toList(growable: false);
+
+  @override
+  void didUpdateWidget(covariant _WaypointMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_locationSignature(oldWidget.people) !=
+        _locationSignature(widget.people)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _fitWaypoints());
+    }
+  }
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  String _locationSignature(List<UserPresence> people) => people
+      .map(
+        (person) =>
+            '${person.id}:${person.latitude}:${person.longitude}:${person.username}',
+      )
+      .join('|');
+
+  void _fitWaypoints() {
+    if (!_mapReady || !mounted) return;
+    final points = _points;
+    if (points.isEmpty) return;
+    if (points.length == 1) {
+      _mapController.move(points.single, 13);
+      return;
+    }
+    _mapController.fitCamera(
+      CameraFit.coordinates(
+        coordinates: points,
+        padding: const EdgeInsets.fromLTRB(54, 72, 54, 48),
+        maxZoom: 13,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 300,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: const Color(0xFF11151C),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFF252D38)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x55000000),
+            blurRadius: 32,
+            offset: Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _fallbackCenter,
+              initialZoom: 3.2,
+              minZoom: 2,
+              maxZoom: 18,
+              backgroundColor: const Color(0xFF11151C),
+              onMapReady: () {
+                _mapReady = true;
+                _fitWaypoints();
+              },
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'live.ditto.demo.ditto_gps',
+                tileBuilder: darkModeTileBuilder,
+              ),
+              MarkerLayer(
+                markers: widget.people
+                    .map(
+                      (person) => Marker(
+                        key: ValueKey(person.id),
+                        point: LatLng(person.latitude, person.longitude),
+                        width: 150,
+                        height: 52,
+                        alignment: Alignment.topCenter,
+                        child: _WaypointMarker(person: person),
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+              RichAttributionWidget(
+                showFlutterMapAttribution: false,
+                popupBackgroundColor: const Color(0xEE11151C),
+                attributions: [
+                  TextSourceAttribution(
+                    'OpenStreetMap contributors',
+                    textStyle: const TextStyle(
+                      color: Color(0xFFB8C1CE),
+                      fontSize: 11,
+                      decoration: TextDecoration.underline,
+                    ),
+                    onTap: () => launchUrl(
+                      Uri.parse('https://www.openstreetmap.org/copyright'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Positioned(
+            top: 12,
+            left: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xE611151C),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: const Color(0xFF2B3542)),
+              ),
+              child: Text(
+                widget.people.isEmpty
+                    ? 'LIVE LOCATIONS'
+                    : 'LIVE LOCATIONS  ·  ${widget.people.length}',
+                style: const TextStyle(
+                  color: Color(0xFFD1D8E2),
+                  fontSize: 10,
+                  letterSpacing: 1.1,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          if (widget.people.isEmpty)
+            const Center(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Color(0xE611151C),
+                  borderRadius: BorderRadius.all(Radius.circular(14)),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Text(
+                    'Add a waypoint to place it on the map.',
+                    style: TextStyle(color: Color(0xFF9AA5B5), fontSize: 12),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WaypointMarker extends StatelessWidget {
+  const _WaypointMarker({required this.person});
+
+  final UserPresence person;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          constraints: const BoxConstraints(maxWidth: 145),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xF211151C),
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: const Color(0x6678F0C6)),
+            boxShadow: const [
+              BoxShadow(color: Color(0x66000000), blurRadius: 8),
+            ],
+          ),
+          child: Text(
+            person.username,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFFE9FFF8),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(height: 3),
+        Container(
+          width: 13,
+          height: 13,
+          decoration: BoxDecoration(
+            color: const Color(0xFF78F0C6),
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFF07110E), width: 3),
+            boxShadow: const [
+              BoxShadow(color: Color(0xAA78F0C6), blurRadius: 10),
+            ],
           ),
         ),
       ],

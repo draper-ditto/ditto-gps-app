@@ -36,6 +36,18 @@ class PresenceController extends ChangeNotifier {
     return null;
   }
 
+  String? validateUsername(String? value) {
+    final username = value?.trim() ?? '';
+    if (username.isEmpty) return 'Enter a username';
+    final normalized = username.toLowerCase();
+    final duplicate = people.any(
+      (person) =>
+          person.id != _deviceId &&
+          person.username.trim().toLowerCase() == normalized,
+    );
+    return duplicate ? 'That username is already in use' : null;
+  }
+
   Future<void> initialize() async {
     syncState = SyncState.connecting;
     errorMessage = null;
@@ -68,7 +80,7 @@ class PresenceController extends ChangeNotifier {
       );
       final ditto = await Ditto.open(config);
       _ditto = ditto;
-      ditto.deviceName = 'Waypoint-${_deviceId!.substring(0, 8)}';
+      ditto.deviceName = 'DraperTAK-${_deviceId!.substring(0, 8)}';
 
       syncState = SyncState.authenticating;
       notifyListeners();
@@ -122,13 +134,48 @@ class PresenceController extends ChangeNotifier {
       throw StateError('Ditto is not authenticated and syncing yet.');
     }
 
+    final cleanUsername = username.trim();
+    final usernameError = validateUsername(cleanUsername);
+    if (usernameError != null) {
+      errorMessage = usernameError;
+      notifyListeners();
+      throw StateError(usernameError);
+    }
+    if (!latitude.isFinite || latitude < -90 || latitude > 90) {
+      const message = 'Enter a latitude between -90 and 90.';
+      errorMessage = message;
+      notifyListeners();
+      throw StateError(message);
+    }
+    if (!longitude.isFinite || longitude < -180 || longitude > 180) {
+      const message = 'Enter a longitude between -180 and 180.';
+      errorMessage = message;
+      notifyListeners();
+      throw StateError(message);
+    }
+
+    final latest = await ditto.store.execute('SELECT * FROM $_collection');
+    final normalizedUsername = cleanUsername.toLowerCase();
+    final duplicate = latest.items.any((item) {
+      final value = item.value;
+      return value['_id']?.toString() != deviceId &&
+          (value['username'] as String?)?.trim().toLowerCase() ==
+              normalizedUsername;
+    });
+    if (duplicate) {
+      const message = 'That username is already in use.';
+      errorMessage = message;
+      notifyListeners();
+      throw StateError(message);
+    }
+
     syncState = SyncState.saving;
     errorMessage = null;
     notifyListeners();
     try {
       final presence = UserPresence(
         id: deviceId,
-        username: username.trim(),
+        username: cleanUsername,
         latitude: latitude,
         longitude: longitude,
         status: status.trim(),

@@ -1,4 +1,4 @@
-# Waypoint — Ditto GPS
+# Draper TAK
 
 A dark, single-page Flutter app for manually sharing a username, GPS coordinates, and status across devices. Flutter clients sync peer-to-peer and through Ditto Server; the TypeScript/Node service joins the same Ditto database and offers configuration and REST inspection endpoints.
 
@@ -9,6 +9,12 @@ Node.js backend ──┘                         └─ Flutter web
 ```
 
 Each device persists a UUID and owns one document in `user_presence`. Updating the username changes that document instead of creating a duplicate. Ditto DQL subscriptions sync all presence documents and store observers refresh the live mesh list.
+
+## Username uniqueness
+
+Usernames are required and compared case-insensitively after trimming whitespace. The Flutter client checks all locally synchronized presence records before saving, while allowing a device to update its own record. The Node API performs the same check and returns HTTP `409` when another device already uses the requested username.
+
+This validation prevents duplicates once the relevant records have synchronized, but it is not a database-level unique constraint. Two completely disconnected devices can choose the same new username at the same time because neither device has received the other's record yet. Ditto guarantees uniqueness for document `_id` values, not arbitrary fields such as `username`. If strict global username reservation becomes necessary, writes should be coordinated through a central service or the data model should use a deterministic username-based document ID with an explicit ownership strategy.
 
 ## Project layout
 
@@ -60,7 +66,8 @@ Add `xmlns:tools="http://schemas.android.com/tools"` to the root `manifest` elem
 <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" tools:targetApi="s" />
 <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" tools:targetApi="s" />
 <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" tools:targetApi="s" />
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="32" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission android:name="android.permission.INTERNET" />
 <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -83,6 +90,8 @@ Add these keys inside the dictionary in `ios/Runner/Info.plist`:
 <string>Uses Bluetooth to connect and sync with nearby devices.</string>
 <key>NSLocalNetworkUsageDescription</key>
 <string>Uses Wi-Fi to connect and sync with nearby devices.</string>
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>Uses your current location to fill in waypoint coordinates when requested.</string>
 <key>NSBonjourServices</key>
 <array>
   <string>_http-alt._tcp.</string>

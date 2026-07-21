@@ -19,7 +19,7 @@ class DittoGpsApp extends StatelessWidget {
 
     final baseTheme = ThemeData.dark(useMaterial3: true);
     return MaterialApp(
-      title: 'Waypoint',
+      title: 'Draper TAK',
       debugShowCheckedModeBanner: false,
       theme: baseTheme.copyWith(
         scaffoldBackgroundColor: background,
@@ -64,4 +64,3 @@ class DittoGpsApp extends StatelessWidget {
     );
   }
 }
-

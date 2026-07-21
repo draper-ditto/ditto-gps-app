@@ -1,11 +1,11 @@
 {
-    "name": "ditto_gps",
-    "short_name": "ditto_gps",
+    "name": "Draper TAK",
+    "short_name": "Draper TAK",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#090B0F",
+    "theme_color": "#090B0F",
+    "description": "Location and status sharing powered by Ditto.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

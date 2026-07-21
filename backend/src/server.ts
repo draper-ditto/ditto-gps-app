@@ -40,6 +40,10 @@ const server = createServer(async (request, response) => {
         sendJson(response, 400, { errors: validation.errors });
         return;
       }
+      if (await ditto.usernameTaken(validation.value.username, validation.value._id)) {
+        sendJson(response, 409, { errors: ['username is already in use.'] });
+        return;
+      }
       await ditto.upsert(validation.value);
       sendJson(response, 200, { data: validation.value });
       return;
@@ -53,7 +57,7 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(config.port, () => {
-  console.info(`Ditto GPS backend listening on http://localhost:${config.port}`);
+  console.info(`Draper TAK backend listening on http://localhost:${config.port}`);
 });
 
 async function shutdown(): Promise<void> {
@@ -88,4 +92,3 @@ async function readJson(request: IncomingMessage): Promise<unknown> {
   if (chunks.length === 0) return {};
   return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
 }
-
