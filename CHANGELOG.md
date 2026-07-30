@@ -9,6 +9,13 @@ promotion.
 
 ## [Unreleased]
 
+## [0.19.1] - 2026-07-30
+
+### Fixed
+
+- Disabled cleartext HTTP traffic in Android release builds while preserving
+  local HTTP backend access for debug builds.
+
 ## [0.19.0] - 2026-07-23
 
 ### Added

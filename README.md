@@ -51,6 +51,29 @@ Available routes:
 
 The config endpoint intentionally returns a Ditto Playground Token for local development. For production, replace Playground authentication with your own short-lived authentication provider and never expose a privileged secret.
 
+### Security boundaries
+
+This repository contains configuration placeholders only. Keep real values in
+the ignored `backend/.env` file or inject them with `--dart-define`; never add
+credentials to source control, build artifacts, screenshots, or issue reports.
+
+The Node backend and Ditto Playground authentication are intended for local
+demonstrations on a trusted network:
+
+- `/api/ditto-config` returns the configured Playground Token to the client.
+- `ALLOWED_ORIGIN` is a browser CORS control, not authentication.
+- The presence API does not authenticate callers.
+- The Admin database reset is destructive and should use only a disposable
+  demonstration database.
+
+Do not expose this backend directly to the public internet. A hosted deployment
+must add authentication and authorization, issue short-lived client
+credentials, restrict CORS to known origins, terminate TLS, rate-limit requests,
+and protect destructive operations. Android release builds reject cleartext
+HTTP; only debug builds permit it for local development. The current Android
+release Gradle configuration also uses debug signing for demonstration purposes
+and must be replaced before distributing a production application.
+
 ## 2. Create the Flutter platform runners
 
 This repository contains the authored Flutter source. Because generated native runner files are machine- and Flutter-version-specific, generate them once after installing Flutter 3.24+:

@@ -6,6 +6,9 @@ void main() {
   final manifest = File(
     'android/app/src/main/AndroidManifest.xml',
   ).readAsStringSync();
+  final debugManifest = File(
+    'android/app/src/debug/AndroidManifest.xml',
+  ).readAsStringSync();
 
   test('Android manifest has one root and one application element', () {
     expect(RegExp(r'<manifest(?:\s|>)').allMatches(manifest), hasLength(1));
@@ -56,5 +59,14 @@ void main() {
       expect(declaration, isNot(contains('android:maxSdkVersion=')));
       expect(declaration, contains('tools:remove="android:maxSdkVersion"'));
     }
+  });
+
+  test('cleartext traffic is restricted to Android debug builds', () {
+    expect(manifest, contains('android:usesCleartextTraffic="false"'));
+    expect(debugManifest, contains('android:usesCleartextTraffic="true"'));
+    expect(
+      debugManifest,
+      contains('tools:replace="android:usesCleartextTraffic"'),
+    );
   });
 }

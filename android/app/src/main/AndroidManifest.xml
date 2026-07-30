@@ -48,13 +48,13 @@
         android:name="android.permission.ACCESS_FINE_LOCATION"
         tools:remove="android:maxSdkVersion" />
 
-    <!-- android:usesCleartextTraffic="true" allows the local HTTP Node backend during development.
-        This is merged into the main application element for debug builds only. -->
+    <!-- Release builds must use encrypted network traffic. The debug manifest
+        overrides this for the local HTTP Node backend used during development. -->
     <application
         android:label="Draper TAK"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="false">
 
         <activity
             android:name=".MainActivity"

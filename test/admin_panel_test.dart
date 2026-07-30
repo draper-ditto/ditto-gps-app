@@ -8,7 +8,7 @@ void main() {
 
     expect(find.text('ADMIN CONTROLS'), findsOneWidget);
     expect(find.text('Application version'), findsOneWidget);
-    expect(find.text('v0.19.0 · build 22'), findsOneWidget);
+    expect(find.text('v0.19.1 · build 23'), findsOneWidget);
     expect(find.byKey(const ValueKey('application-version')), findsOneWidget);
     expect(find.text('Ditto demo database'), findsOneWidget);
     expect(find.text('Clear and reset database'), findsOneWidget);

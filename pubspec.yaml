@@ -1,7 +1,7 @@
 name: ditto_gps
 description: A sleek presence and manually entered GPS sharing app powered by Ditto.
 publish_to: none
-version: 0.19.0+22
+version: 0.19.1+23
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
