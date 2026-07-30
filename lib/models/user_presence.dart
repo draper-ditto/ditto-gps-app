@@ -1,3 +1,5 @@
+import 'mesh_peer_status.dart';
+
 class UserPresence {
   const UserPresence({
     required this.id,
@@ -6,6 +8,8 @@ class UserPresence {
     required this.longitude,
     required this.status,
     required this.updatedAt,
+    this.isDeleted = false,
+    this.liveMeshStatus,
   });
 
   final String id;
@@ -14,6 +18,8 @@ class UserPresence {
   final double longitude;
   final String status;
   final DateTime updatedAt;
+  final bool isDeleted;
+  final MeshPeerStatus? liveMeshStatus;
 
   factory UserPresence.fromJson(Map<String, dynamic> json) {
     return UserPresence(
@@ -24,7 +30,10 @@ class UserPresence {
       status: json['status'] as String? ?? '',
       updatedAt: DateTime.fromMillisecondsSinceEpoch(
         (json['updatedAt'] as num?)?.toInt() ?? 0,
+        isUtc: true,
       ),
+      isDeleted: json['isDeleted'] == true,
+      liveMeshStatus: _meshStatusFromJson(json['liveMeshStatus']),
     );
   }
 
@@ -35,6 +44,17 @@ class UserPresence {
         'longitude': longitude,
         'status': status,
         'updatedAt': updatedAt.millisecondsSinceEpoch,
+        'isDeleted': isDeleted,
+        if (liveMeshStatus != null)
+          'liveMeshStatus': liveMeshStatus!.toTelemetryJson(),
       };
-}
 
+  static MeshPeerStatus? _meshStatusFromJson(Object? value) {
+    if (value is! Map) return null;
+    return MeshPeerStatus.fromTelemetryJson(
+      value.map<String, dynamic>(
+        (key, value) => MapEntry(key.toString(), value),
+      ),
+    );
+  }
+}

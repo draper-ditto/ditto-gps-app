@@ -23,6 +23,7 @@ export class DittoService {
       url: config.serverUrl,
     });
     const ditto = await Ditto.open(dittoConfig);
+    ditto.deviceName = 'Draper TAK Node backend';
     this.ditto = ditto;
 
     await ditto.auth.setExpirationHandler(async (activeDitto, secondsRemaining) => {
@@ -45,7 +46,9 @@ export class DittoService {
     const result = await this.getDitto().store.execute(
       `SELECT * FROM ${collection} ORDER BY updatedAt DESC`,
     );
-    return result.items.map((item) => item.value as unknown as UserPresence);
+    return result.items
+      .map((item) => item.value as unknown as UserPresence)
+      .filter((person) => person.isDeleted !== true);
   }
 
   async upsert(presence: UserPresence): Promise<void> {

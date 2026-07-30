@@ -5,6 +5,7 @@ export interface UserPresence {
   longitude: number;
   status: string;
   updatedAt: number;
+  isDeleted?: boolean;
 }
 
 export interface ValidationResult {
@@ -24,7 +25,9 @@ export function hasDuplicateUsername(
   const normalized = normalizeUsername(username);
   return people.some(
     (person) =>
-      person._id !== excludingId && normalizeUsername(person.username) === normalized,
+      person.isDeleted !== true &&
+      person._id !== excludingId &&
+      normalizeUsername(person.username) === normalized,
   );
 }
 
@@ -55,6 +58,7 @@ export function validatePresence(input: unknown): ValidationResult {
       longitude,
       status,
       updatedAt: Date.now(),
+      isDeleted: false,
     },
   };
 }
