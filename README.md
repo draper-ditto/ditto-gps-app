@@ -25,6 +25,7 @@ This validation prevents duplicates once the relevant records have synchronized,
 - `backend/` — TypeScript server and a Ditto SDK peer
 - `backend/.env.example` — required Ditto credentials
 - `CHANGELOG.md` — user-visible changes organized by application version
+- `AGENTS.md` — repository conventions: versioning, validation, Git workflow
 
 ## 1. Configure Ditto
 
@@ -272,3 +273,35 @@ flutter test
 ```
 
 The backend targets Node 22+ and Ditto SDK 5.0.2.
+
+## Contributing
+
+Every change lands on its own branch and merges with its own merge commit, so `git log --graph` reads as a list of what each update contained. **Never commit directly to `main`.**
+
+Branches are named `<type>/<short-kebab-slug>`:
+
+| Type | For |
+| --- | --- |
+| `feat` | new behavior a user or API client can observe |
+| `fix` | a defect in existing behavior |
+| `docs` | documentation, comments, or runbooks only |
+| `test` | tests only |
+| `chore` | dependencies, CI, tooling, formatting |
+| `refactor` | internal structure with no behavior change |
+
+A branch is one coherent change and one `CHANGELOG.md` entry. Commit subjects are imperative and sentence-case, naming the outcome rather than the mechanism, with no type prefix — the branch name already carries it.
+
+```bash
+git switch main && git pull --ff-only
+git switch -c feat/my-change
+# work, then run the Validation commands above
+git push -u origin feat/my-change
+gh pr create --fill
+gh pr merge --merge --delete-branch
+```
+
+Merge with `--merge`, never `--squash` or `--rebase`; a squash flattens the branch out of history, which is the thing this workflow exists to preserve.
+
+Branches that change observable behavior also carry a version bump and a changelog entry. Documentation-only, test-only, formatting-only, and internal refactoring branches skip both.
+
+See [AGENTS.md](AGENTS.md) for the full conventions, including versioning rules, the complete validation gate, and the Ditto presence and UX invariants.
