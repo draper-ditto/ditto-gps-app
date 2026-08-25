@@ -125,6 +125,144 @@ failures, but mention material warnings in the final summary.
 - Keep tests deterministic. Do not require live credentials or external
   services for unit and widget tests.
 
+## Git workflow
+
+Every change lands on its own branch and merges with its own merge commit, so
+`git log --graph` reads as a list of what each update contained. Draper TAK
+changes in small increments over a long period, and the branch shape is the
+record of which change was which.
+
+**Never commit directly to `main`.**
+
+### One branch per change
+
+A branch is one coherent change: one thing a reader would name in a sentence,
+and one entry in `CHANGELOG.md`. Two unrelated improvements are two branches,
+even when they are small and even when they are already sitting in the same
+worktree. Splitting them afterwards is much harder than starting them apart.
+
+If work in progress turns out to contain two changes, land the first, then
+branch again for the second.
+
+### Branch names
+
+`<type>/<short-kebab-slug>`, where type is one of:
+
+| Type | For |
+| --- | --- |
+| `feat` | new behavior a user or API client can observe |
+| `fix` | a defect in existing behavior |
+| `docs` | documentation, comments, or runbooks only |
+| `test` | tests only |
+| `chore` | dependencies, CI, tooling, formatting |
+| `refactor` | internal structure with no behavior change |
+
+The type is chosen for what the branch changes, not for how much work it was.
+A one-line change that alters observable behavior is still `feat` or `fix`; a
+large internal rewrite that changes nothing a device does is `refactor`.
+
+Examples matching this repository's history:
+
+```
+feat/live-map-and-waypoint-validation
+feat/mesh-topology-reconnecting-state
+fix/android-cleartext-release-traffic
+docs/tak-workflows-and-release-history
+chore/harden-repo-for-public-release
+```
+
+### The sequence
+
+```bash
+# 1. start from a current main
+git switch main
+git pull --ff-only
+
+# 2. branch
+git switch -c feat/my-change
+
+# 3. work, committing in logical units
+git add -A
+git commit            # message conventions below
+
+# 4. run the gate for this repository (see "Before you merge")
+
+# 5. push the branch
+git push -u origin feat/my-change
+
+# 6. open a pull request
+gh pr create --fill
+
+# 7. merge, keeping the branch visible in history
+gh pr merge --merge --delete-branch
+
+# 8. return to a current main and confirm the shape
+git switch main
+git pull --ff-only
+git log --graph --oneline -12
+```
+
+### Merge with a merge commit, never a squash
+
+`gh pr merge --merge`. Not `--squash`, not `--rebase`.
+
+A squash flattens the branch out of history, which is precisely the thing this
+workflow exists to preserve.
+
+### Commit messages
+
+Match what is already in the log: an imperative, sentence-case subject naming
+the outcome, not the mechanism.
+
+```
+Add persistent identity and mesh telemetry
+Build Draper TAK observability and admin experience
+```
+
+No type prefix in the subject — the branch name already carries that. Use the
+body to explain *why*, including what was considered and rejected, because that
+is the part nobody can reconstruct later. Keep the `Co-Authored-By` trailer on
+agent-authored commits.
+
+### Before you merge
+
+The pre-merge gate is the same one described under **Required validation**
+above; keep the two in step if either changes.
+
+```bash
+flutter analyze
+flutter test
+
+cd backend
+npm run typecheck
+npm test
+npm run build
+cd ..
+
+git diff --check
+```
+
+For user-visible features, deployment changes, platform integration, or release
+handoff, also run the release builds named under **Required validation**:
+
+```bash
+flutter build web
+flutter build apk --debug
+```
+
+Also required, per branch type:
+
+- A branch that changes observable behavior carries the version bump described
+  under **Demo application version** and the `CHANGELOG.md` entry described
+  under **Changelog maintenance**, saying what a device now does differently.
+- Branches that only touch documentation, tests, formatting, or internal
+  refactoring skip both the bump and the changelog entry — they change nothing
+  a device can observe.
+- A branch that claims a presence, topology, or convergence improvement states
+  the evidence, including which platforms it was validated on. Native mesh
+  claims require physical hardware; simulator and browser results do not
+  qualify.
+
 ## Ditto presence and topology rules
 
 - Determine Big Peer connectivity from the Ditto SDK
@@ -215,6 +353,9 @@ failures, but mention material warnings in the final summary.
   demo.
 - Do not commit, push, delete data, reset the database, or install an application
   on a device unless the user's request authorizes that action.
+- When a request does authorize committing, follow **Git workflow** above: branch
+  with a `<type>/<slug>` name, never commit to `main`, and merge with a merge
+  commit rather than a squash.
 
 ## Completion summary
 
